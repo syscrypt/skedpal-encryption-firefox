@@ -1,6 +1,6 @@
 const todoListXpath = "//section/div/div/div/div/div[2]/div/div[2]/div/div/div[1]/div/div/div";
-
-const saltLen = 16;
+const plusXpath = "//section/div/div/div/div/div[2]/div/div[2]/div/div/div[2]/div[1]";
+const saltLen = 8;
 
 var textEncoder = new TextEncoder("utf-8");
 var textDecoder = new TextDecoder("utf-8");
@@ -11,22 +11,44 @@ var encryptionKey = [
 ];
 
 const EditBoxStyle = `
+display: flex;
+flex-direction: row;
 position: absolute;
 width: 14rem;
 height: 100%;
-margin-left: -200px;
+margin-left: -16rem;
 z-index: 1;
-margin-top: 1px;
+align-items: flex-start;
 `;
 
 const InputBoxStyle = `
 `;
 
 const EditBox = `
-<div style="$style">
-    <input style="$inputBoxStyle" type="text" value="$value" placeholder="Project Title..." />
+<div class="encryption" style="$style">
+    <input id="updateInput$updInputId" style="$inputBoxStyle" type="text" value="$value" placeholder="Project Title..." />
+    <button id="updateBtn$btnId">Update</button>
 </div>
 `;
+
+function Sleep(milliseconds) {
+  return new Promise(resolve => setTimeout(resolve, milliseconds));
+}
+
+const updateListEntry = async (idx, elem) => {
+  const updateTitle = $("#updateInput" + idx);
+
+  elem[0].click();
+  await Sleep(300);
+  let editViewContainer = elem.find(".edit-and-view-mode-input-container")[0];
+  let drafty = elem.find(".public-DraftEditor-content")[0];
+  drafty.focus();
+  window.getSelection().selectAllChildren(editViewContainer);
+  await Sleep(100);
+  document.execCommand("insertText", false, encodeTitle(updateTitle.val()));
+  await Sleep(100);
+  updateTitle.focus();
+};
 
 function _x(STR_XPATH) {
   var xresult = document.evaluate(STR_XPATH, document, null, XPathResult.ANY_TYPE, null);
@@ -40,6 +62,7 @@ function _x(STR_XPATH) {
 }
 
 const todoList = $(_x(todoListXpath));
+const addBtn = $(_x(plusXpath));
 
 const addOverflowNone = elem => {
   let styleProp = elem.attr("style");
@@ -59,7 +82,7 @@ const createRandomSalt = () => {
 };
 
 const padString = str => {
-  const newLen = Math.pow(2, Math.ceil(Math.log2(str.length + 8)));
+  const newLen = Math.pow(2, Math.ceil(Math.log2(str.length)));
   let ret = [];
   ret.push(str.length);
 
@@ -97,9 +120,6 @@ const rotString = (salt, str, forward = true) => {
   }
 
   for (let i = 0; i < str.length; i++) {
-    // ret.push(str[i].charCodeAt(0));
-    // continue;
-
     if (forward) {
       ret.push(uint16add(str[i].charCodeAt(0), salt[saltIdx++]));
     } else {
@@ -112,19 +132,6 @@ const rotString = (salt, str, forward = true) => {
   }
 
   return String.fromCharCode(...ret);
-};
-
-const utf8ToUtf16Arr = arr => {
-  let ret = [];
-  for (let i = 0; i < arr.length; i += 2) {
-    if (i + 1 >= arr.length) {
-      ret.push(arr[i]);
-      break;
-    }
-
-    ret.push((arr[i] << 8) | (arr[i + 1] & 0xff));
-  }
-  return ret;
 };
 
 const stringToNumArray = str => {
@@ -159,6 +166,75 @@ const decodeTitle = encryptedHex => {
   return paddedString.slice(1, len + 1);
 };
 
+const getMostInnerFirstChild = elem => {
+  let lastElem = elem;
+  while (elem && elem != null && elem != undefined && elem.children().length > 0) {
+    lastElem = elem;
+    elem = elem.children().first();
+  }
+  return lastElem;
+};
+
+const getTitleElement = titleContainer => {
+  return titleContainer
+    .first()
+    .children()
+    .first()
+    .children()
+    .first()
+    .children()
+    .first()
+    .children()
+    .first()
+    .children()
+    .first();
+};
+
+const createEditBoxes = () => {
+  todoList.children().each(function (idx) {
+    let titleContainer = $(this).find(".simple-snippet-center-body");
+    if (titleContainer.length <= 0) {
+      return;
+    }
+
+    let titleElem = getTitleElement(titleContainer);
+    let title = titleElem.text();
+
+    let decodedTitle = "";
+    try {
+      decodedTitle = decodeTitle(title);
+    } catch (e) {
+      decodedTitle = title;
+    }
+
+    $(this).prepend(
+      EditBox.replaceAll("$style", EditBoxStyle)
+        .replaceAll("$inputBoxStyle", InputBoxStyle)
+        .replaceAll("$value", decodedTitle)
+        .replaceAll("$btnId", idx)
+        .replaceAll("$updInputId", idx)
+    );
+
+    $("#updateBtn" + idx).on("click", async function () {
+      await updateListEntry(idx, titleContainer);
+    });
+  });
+};
+
+function selectText(element) {
+  if (document.selection) {
+    // IE
+    var range = document.body.createTextRange();
+    range.moveToElementText(element);
+    range.select();
+  } else if (window.getSelection) {
+    var range = document.createRange();
+    range.selectNode(element);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+  }
+}
+
 const main = () => {
   if (!todoList.length) {
     return;
@@ -168,32 +244,24 @@ const main = () => {
   addOverflowNone(todoList.parent());
   addOverflowNone(todoList.parent().parent().parent().parent());
 
-  todoList.children().each(function () {
-    let titleContainer = $(this).find(".simple-snippet-title-container");
-    if (titleContainer.length <= 0) {
-      return;
-    }
+  addBtn.on("click", async function () {
+    await Sleep(300);
+    let drafty = $(this).parent().parent().find(".public-DraftEditor-content")[0];
+    drafty.focus();
+    await Sleep(100);
+    document.execCommand("insertText", false, " ");
+    await Sleep(100);
+    let reload = $(this).parent().parent().find(".draftjs--errorBoundary--reload")[0];
+    reload.click();
+    await Sleep(100);
+    $("div.encryption").remove();
+    createEditBoxes();
 
-    let title = titleContainer
-      .first()
-      .children()
-      .first()
-      .children()
-      .first()
-      .children()
-      .first()
-      .children()
-      .first()
-      .children()
-      .first()
-      .text();
-
-    $(this).prepend(
-      EditBox.replaceAll("$style", EditBoxStyle)
-        .replaceAll("$inputBoxStyle", InputBoxStyle)
-        .replaceAll("$value", encodeTitle(title))
-    );
+    const updateTitle = $("#updateInput" + (todoList.children().length - 1));
+    updateTitle.focus();
   });
+
+  createEditBoxes();
 };
 
 main();
