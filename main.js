@@ -1,6 +1,6 @@
 const todoListXpath = "//section/div/div/div/div/div[2]/div/div[2]/div/div/div[1]/div/div/div";
 const plusXpath = "//section/div/div/div/div/div[2]/div/div[2]/div/div/div[2]/div[1]";
-const saltLen = 8;
+const saltLen = 4;
 
 var textEncoder = new TextEncoder("utf-8");
 var textDecoder = new TextDecoder("utf-8");
@@ -82,7 +82,14 @@ const createRandomSalt = () => {
 };
 
 const padString = str => {
-  const newLen = Math.pow(2, Math.ceil(Math.log2(str.length)));
+  let newLen = str.length;
+
+  if (str.length < 32) {
+    newLen = Math.pow(2, Math.ceil(Math.log2(str.length)));
+  } else {
+    newLen = Math.random() * 16 + 1;
+  }
+
   let ret = [];
   ret.push(str.length);
 
