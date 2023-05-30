@@ -1,6 +1,6 @@
 {
   "manifest_version": 2,
-  "name": "SkedPal encryption",
+  "name": "SkedPal Encryption",
   "version": "0.0.1a1",
 
   "description": "Creates an overlay on SkedPal and encrypts/decrypts texts",
@@ -11,10 +11,21 @@
     }
   },
 
+  "permissions": ["storage"],
+
   "content_scripts": [
     {
       "matches": ["https://app.skedpal.com/*"],
-      "js": ["vendor/jquery-3.6.0.min.js", "vendor/aes.js", "main.js"],
+      "js": [
+        "vendor/jquery-3.6.0.min.js",
+        "vendor/md5.min.js",
+        "vendor/aes.js",
+        "encryption.js",
+        "calendar.js",
+        "notes.js",
+        "main.js",
+        "common.js"
+      ],
       "run_at": "document_idle"
     }
   ]

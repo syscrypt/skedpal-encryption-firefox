@@ -1,14 +1,8 @@
 const todoListXpath = "//section/div/div/div/div/div[2]/div/div[2]/div/div/div[1]/div/div/div";
 const plusXpath = "//section/div/div/div/div/div[2]/div/div[2]/div/div/div[2]/div[1]";
-const saltLen = 4;
+const outerContainerXpath = "//section/div/div/div/div";
 
-var textEncoder = new TextEncoder("utf-8");
-var textDecoder = new TextDecoder("utf-8");
-
-var encryptionKey = [
-  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
-  27, 28, 29, 30, 31
-];
+var active = false;
 
 const EditBoxStyle = `
 display: flex;
@@ -28,6 +22,7 @@ const EditBox = `
 <div class="encryption" style="$style">
     <input id="updateInput$updInputId" style="$inputBoxStyle" type="text" value="$value" placeholder="Project Title..." />
     <button id="updateBtn$btnId">Update</button>
+    <button id="deleteBtn$delId">-</button>
 </div>
 `;
 
@@ -35,7 +30,7 @@ function Sleep(milliseconds) {
   return new Promise(resolve => setTimeout(resolve, milliseconds));
 }
 
-const updateListEntry = async (idx, elem) => {
+const updateListEntry = async (idx, elem, removal) => {
   const updateTitle = $("#updateInput" + idx);
 
   elem[0].click();
@@ -45,9 +40,33 @@ const updateListEntry = async (idx, elem) => {
   drafty.focus();
   window.getSelection().selectAllChildren(editViewContainer);
   await Sleep(100);
-  document.execCommand("insertText", false, encodeTitle(updateTitle.val()));
+
+  removeItem(removal);
+  let encryptedTitle = encodeTitle(updateTitle.val());
+  let hash = md5(encryptedTitle);
+
+  storeItem(hash, encryptedTitle);
+
+  document.execCommand("insertText", false, hash);
   await Sleep(100);
   updateTitle.focus();
+};
+
+const deleteListEntry = async (idx, elem, removal) => {
+  const updateTitle = $("#updateInput" + idx);
+
+  elem[0].click();
+  await Sleep(300);
+  let editViewContainer = elem.find(".edit-and-view-mode-input-container")[0];
+  let drafty = elem.find(".public-DraftEditor-content")[0];
+  drafty.focus();
+  window.getSelection().selectAllChildren(editViewContainer);
+  await Sleep(100);
+  removeItem(removal);
+  document.execCommand("delete", false, "");
+  await Sleep(100);
+  updateTitle.focus();
+  updateTitle.click();
 };
 
 function _x(STR_XPATH) {
@@ -61,8 +80,8 @@ function _x(STR_XPATH) {
   return xnodes;
 }
 
-const todoList = $(_x(todoListXpath));
-const addBtn = $(_x(plusXpath));
+var todoList = $(_x(todoListXpath));
+var addBtn = $(_x(plusXpath));
 
 const addOverflowNone = elem => {
   let styleProp = elem.attr("style");
@@ -70,107 +89,6 @@ const addOverflowNone = elem => {
     .replace(/overflow\s*:\s*auto\s*;/g, "overflow: none;")
     .replace(/overflow\s*:\s*hidden\s*;/g, "overflow: none;");
   elem.attr("style", newStyle);
-};
-
-const createRandomSalt = () => {
-  let salt = [];
-  for (let i = 0; i < saltLen; i++) {
-    let rnd = Math.floor(Math.random() * 255);
-    salt.push(rnd & 0xff);
-  }
-  return salt;
-};
-
-const padString = str => {
-  let newLen = str.length;
-
-  if (str.length < 32) {
-    newLen = Math.pow(2, Math.ceil(Math.log2(str.length)));
-  } else {
-    newLen = Math.random() * 16 + 1;
-  }
-
-  let ret = [];
-  ret.push(str.length);
-
-  for (let i = 0; i < str.length; i++) {
-    ret.push(str[i].charCodeAt(0));
-  }
-
-  for (let i = ret.length; i < newLen; i++) {
-    ret.push(Math.random() * 65535);
-  }
-
-  return String.fromCharCode(...ret);
-};
-
-const uint16add = (a, b) => {
-  a = a & 0xffff;
-  b = b & 0xffff;
-  return (a + b) % 0xffff;
-};
-
-const uint16sub = (a, b) => {
-  a = a & 0xffff;
-  b = b & 0xffff;
-  return (a - b) % 0xffff;
-};
-
-const rotString = (salt, str, forward = true) => {
-  let saltIdx = 0;
-  let ret = [];
-
-  if (forward) {
-    for (let i = 0; i < salt.length; i++) {
-      ret.push(salt[i] & 0xffff);
-    }
-  }
-
-  for (let i = 0; i < str.length; i++) {
-    if (forward) {
-      ret.push(uint16add(str[i].charCodeAt(0), salt[saltIdx++]));
-    } else {
-      ret.push(uint16sub(str[i].charCodeAt(0), salt[saltIdx++]));
-    }
-
-    if (saltIdx >= salt.length) {
-      saltIdx = 0;
-    }
-  }
-
-  return String.fromCharCode(...ret);
-};
-
-const stringToNumArray = str => {
-  let ret = [];
-  for (let i = 0; i < str.length; i++) {
-    ret.push(str[i].charCodeAt(0));
-  }
-  return ret;
-};
-
-const encodeTitle = title => {
-  const saltBytes = createRandomSalt();
-  let paddedTitle = padString(title);
-  let rotTitle = rotString(saltBytes, paddedTitle, true);
-  let titleBytes = textEncoder.encode(rotTitle);
-
-  let aesCtr = new aesjs.ModeOfOperation.ctr(encryptionKey, new aesjs.Counter(5));
-  let encryptedBytes = aesCtr.encrypt(titleBytes);
-  return aesjs.utils.hex.fromBytes(encryptedBytes);
-};
-
-const decodeTitle = encryptedHex => {
-  let encryptedBytes = aesjs.utils.hex.toBytes(encryptedHex);
-  let aesCtr = new aesjs.ModeOfOperation.ctr(encryptionKey, new aesjs.Counter(5));
-  let decryptedBytes = aesCtr.decrypt(encryptedBytes);
-  let decodedString = textDecoder.decode(decryptedBytes);
-  let salt = stringToNumArray(decodedString.slice(0, saltLen));
-
-  let paddedString = rotString(salt, decodedString.slice(saltLen, decodedString.length), false);
-
-  let len = paddedString.charCodeAt(0) & 0xffff;
-  return paddedString.slice(1, len + 1);
 };
 
 const getMostInnerFirstChild = elem => {
@@ -198,7 +116,7 @@ const getTitleElement = titleContainer => {
 };
 
 const createEditBoxes = () => {
-  todoList.children().each(function (idx) {
+  todoList.children().each(async function (idx) {
     let titleContainer = $(this).find(".simple-snippet-center-body");
     if (titleContainer.length <= 0) {
       return;
@@ -206,6 +124,11 @@ const createEditBoxes = () => {
 
     let titleElem = getTitleElement(titleContainer);
     let title = titleElem.text();
+    let titleFromMap = await getItem(title);
+
+    if (titleFromMap != "" && titleFromMap !== undefined) {
+      title = titleFromMap;
+    }
 
     let decodedTitle = "";
     try {
@@ -219,33 +142,26 @@ const createEditBoxes = () => {
         .replaceAll("$inputBoxStyle", InputBoxStyle)
         .replaceAll("$value", decodedTitle)
         .replaceAll("$btnId", idx)
+        .replaceAll("$delId", idx)
         .replaceAll("$updInputId", idx)
     );
 
     $("#updateBtn" + idx).on("click", async function () {
-      await updateListEntry(idx, titleContainer);
+      await updateListEntry(idx, titleContainer, titleElem.text());
+    });
+
+    $("#deleteBtn" + idx).on("click", async function () {
+      await deleteListEntry(idx, titleContainer, titleElem.text());
     });
   });
 };
 
-function selectText(element) {
-  if (document.selection) {
-    // IE
-    var range = document.body.createTextRange();
-    range.moveToElementText(element);
-    range.select();
-  } else if (window.getSelection) {
-    var range = document.createRange();
-    range.selectNode(element);
-    window.getSelection().removeAllRanges();
-    window.getSelection().addRange(range);
-  }
-}
-
-const main = () => {
-  if (!todoList.length) {
+const manageTodoList = () => {
+  if (!todoList || todoList.length == 0) {
     return;
   }
+
+  insertNoteBox();
 
   addOverflowNone(todoList);
   addOverflowNone(todoList.parent());
@@ -264,11 +180,47 @@ const main = () => {
     $("div.encryption").remove();
     createEditBoxes();
 
+    await Sleep(100);
     const updateTitle = $("#updateInput" + (todoList.children().length - 1));
     updateTitle.focus();
   });
 
   createEditBoxes();
+
+  $(".simple-snippet-description-container").hover(async function () {
+    await Sleep(300);
+    decryptTooltips();
+  });
 };
 
-main();
+const decryptTooltips = () => {
+  $(".MuiTooltip-popper").each(function () {
+    try {
+      let decryptedTitle = decodeTitle($(this).text());
+      //$(this).text(decryptedTitle);
+    } catch (e) {}
+  });
+};
+
+manageTodoList();
+
+async function handleTodoListReload() {
+  todoList = $(_x(todoListXpath));
+  addBtn = $(_x(plusXpath));
+  while (!todoList || !addBtn || todoList.length == 0 || addBtn.length == 0) {
+    await Sleep(100);
+    todoList = $(_x(todoListXpath));
+    addBtn = $(_x(plusXpath));
+  }
+  manageTodoList();
+}
+
+window.addEventListener("load", handleTodoListReload, false);
+window.addEventListener(
+  "beforeunload",
+  function () {
+    window.removeEventListener("load", handleTodoListReload, false);
+    window.removeEventListener("beforeunload", this, false);
+  },
+  false
+);

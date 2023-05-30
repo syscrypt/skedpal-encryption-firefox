@@ -14,7 +14,7 @@ This project enables the users of SkedPal to encrypt their projects and tasks.
 - [ ] Make salt length variable
 - [ ] Replace execCommand for text insertion
 - [ ] Replace time delays
-- [ ] Use hashmap and store encrypted strings in browser storage
+- [x] Use hashmap and store encrypted strings in browser storage
   - [ ] Implement an export for that hashmap
 - [ ] Decrypt entries in calendar view
 - [ ] Fix Oops hack on new entry creation
