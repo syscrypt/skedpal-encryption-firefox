@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en-US">
+    <head>
+        <meta charset="utf-8">
+        <title>Skedpal Encryption Config</title>
+        <meta name="description" content="Configuration page for skedpal encryption extension">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <style>
+         div {
+             margin-bottom: 1rem;
+         }
+         div#keyWarning {
+             color: red;
+         }
+        </style>
+    </head>
+    <body>
+        <h1>Skedpal Encryption</h1>
+        <div>
+            Encryption key: <input id="skedpalKey" type="password" />
+            <button id="saveEncryptionKey">Update</button>
+        </div>
+        <div>
+            Salt length: <input id="skedpalSaltLen" type="number" min="1" max="128" value="4" />
+            <button id="saveSaltLen">Update</button>
+        </div>
+        <div id="keyWarning">
+            Caution: Updating the encryption key or salt length, or using different<br/>
+            keys/salts in different environments can mess up your data!<br/><br/>
+            Please use an encryption key that differs from your other passwords as this
+            key is not securely stored.<br/>It is just for the purpose of the extension.
+        </div>
+        <div>
+            Export encrypted titles: <button id="exportBtn">Export</button>
+        </div>
+        <div>
+            Import encrypted titles: <input id="importBtn" type="file" />
+        </div>
+
+        <script src="../vendor/jquery-3.6.0.min.js"></script>
+        <script src="../encryption.js"></script>
+        <script src="../background_export.js"></script>
+        <script src="options.js"></script>
+    </body>
+</html>

@@ -197,7 +197,7 @@ const decryptTooltips = () => {
   $(".MuiTooltip-popper").each(function () {
     try {
       let decryptedTitle = decodeTitle($(this).text());
-      //$(this).text(decryptedTitle);
+      $(this).children().first().text(decryptedTitle);
     } catch (e) {}
   });
 };

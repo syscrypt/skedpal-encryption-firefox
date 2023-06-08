@@ -1,12 +1,8 @@
-const saltLen = 4;
+var saltLen = undefined;
+var encryptionKey = [];
 
 var textEncoder = new TextEncoder("utf-8");
 var textDecoder = new TextDecoder("utf-8");
-
-var encryptionKey = [
-  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
-  27, 28, 29, 30, 31
-];
 
 const encodeTitle = title => {
   const saltBytes = createRandomSalt();
@@ -128,3 +124,18 @@ const getItem = async key => {
   });
   return promise;
 };
+
+const loadKeyAndSalt = async () => {
+  saltLen = await getItem("skedpal_salt_length");
+  encryptionKey = await getItem("skedpal_encryption_key");
+
+  if (!saltLen) {
+    alert("Salt len not defined in Skedpal Encryption options page!");
+  }
+
+  if (!encryptionKey || encryptionKey.length === 0) {
+    alert("Encryption key not defined in Skedpal Encryption options page!");
+  }
+};
+
+loadKeyAndSalt();

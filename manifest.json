@@ -1,7 +1,11 @@
 {
   "manifest_version": 2,
   "name": "SkedPal Encryption",
-  "version": "0.0.1a1",
+  "version": "0.0.2a1",
+  "options_ui": {
+    "page": "options/config.html",
+    "open_in_tab": true
+  },
 
   "description": "Creates an overlay on SkedPal and encrypts/decrypts texts",
 
@@ -11,7 +15,7 @@
     }
   },
 
-  "permissions": ["storage"],
+  "permissions": ["storage", "downloads", "downloads.open"],
 
   "content_scripts": [
     {
@@ -28,5 +32,9 @@
       ],
       "run_at": "document_idle"
     }
-  ]
+  ],
+
+  "background": {
+    "scripts": ["background_export.js"]
+  }
 }
